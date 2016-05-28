@@ -1,5 +1,5 @@
-# binprog-kmeans
-An attempt to a binary linear programming-based implementation of k-means algorithm in R.
+# bpkm
+An attempt to a **b**inary linear **p**rogramming-based implementation of **k**-**m**eans algorithm in R.
 
 # usage
 ...
