@@ -1,6 +1,6 @@
 # --------------------------------------
 # binary lp-based k-means implementation
-# author: abel borges
+# author: Abel Borges
 # --------------------------------------
 
 # r: matrix N-by-K classifying columns of x
