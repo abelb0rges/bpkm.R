@@ -16,7 +16,7 @@ meanfail <- mean(fails)
 
 # simulation study
 bpkm_sim <- function(nreps=100, MAHALANOBIS, RBASED) {
-  library(MASS)
+  require(MASS)
   mu1 <- c(0,0)
   mu2 <- c(2,2)
   S1 <- matrix(c(1, .5,
