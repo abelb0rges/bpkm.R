@@ -16,7 +16,7 @@ meanfail <- mean(fails)
 
 # simulation study
 bpkm_sim <- function(nreps=100, MAHALANOBIS, RBASED) {
-  library(mnormt)
+  library(MASS)
   mu1 <- c(0,0)
   mu2 <- c(2,2)
   S1 <- matrix(c(1, .5,
@@ -30,8 +30,8 @@ bpkm_sim <- function(nreps=100, MAHALANOBIS, RBASED) {
   sols <- list()
   length(sols) <- nreps
   for(i in 1:nreps) {
-    X1 <- rmnorm(N1, mu1, S1)
-    X2 <- rmnorm(N2, mu2, S2)
+    X1 <- mvrnorm(N1, mu1, S1)
+    X2 <- mvrnorm(N2, mu2, S2)
     X <- cbind(rbind(X1, X2), c(rep(1, N1), rep(2, N2)))
     
     sols[[i]] <- bpkm(X=X, K=2, min_it=2,
