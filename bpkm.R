@@ -38,19 +38,19 @@ cost_ed <- function(r, mu, X) {
 
 # mahalanobis distance-based cost function
 cost_md <- function(r, mu, X) {
+  require(MASS)
   N <- dim(r)[1]; R <- dim(r)[2]
   K <- dim(mu)[1]
-  
   J <- 0
+  
   for(k in 1:K) {
     kth <- (r[,k] == 1) # rows of k-th cluster
     S <- cov(X[kth,])
-    # TO-DO: include this check on S
-    # if(S is not singular) {
+    if(det(S) < 1e-10) Sinv = ginv(S)
+    else Sinv = solve(S)
     for(n in 1:N) {
-      J <- J + mahalanobis(X[n,], mu[k,], S)
+      J <- J + mahalanobis(X[n,], mu[k,], Sinv, inverted=TRUE)
     }
-    #}
   }
   
   J
@@ -61,6 +61,7 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
   # K: number of groups
   
   # dependencies
+  require(MASS)
   if(!require(magrittr))
     stop("run install.packages('magrittr') please")
   if(!require(lpSolve))
@@ -167,7 +168,9 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
           if(MAHALANOBIS) {
             kth <- (oldr[k,] == 1)
             S <- cov(X[kth,])
-            obj[ind] <- mahalanobis(X[n,],mu[k,],S)
+            if(det(S) < 1e-10) Sinv = ginv(S)
+            else Sinv = solve(S)
+            obj[ind] <- mahalanobis(X[n,], mu[k,], Sinv, inverted=TRUE)
           } else {
             obj[ind] <- (X[n,] - mu[k,]) %>% as.numeric %>% ed
           }
