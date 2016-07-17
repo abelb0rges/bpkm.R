@@ -46,8 +46,7 @@ cost_md <- function(r, mu, X) {
   for(k in 1:K) {
     kth <- (r[,k] == 1) # rows of k-th cluster
     S <- cov(X[kth,])
-    if(det(S) < 1e-10) Sinv = ginv(S)
-    else Sinv = solve(S)
+    Sinv <- ginv(S)
     for(n in 1:N) {
       J <- J + mahalanobis(X[n,], mu[k,], Sinv, inverted=TRUE)
     }
@@ -168,8 +167,7 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
           if(MAHALANOBIS) {
             kth <- (oldr[k,] == 1)
             S <- cov(X[kth,])
-            if(det(S) < 1e-10) Sinv = ginv(S)
-            else Sinv = solve(S)
+            Sinv <- ginv(S)
             obj[ind] <- mahalanobis(X[n,], mu[k,], Sinv, inverted=TRUE)
           } else {
             obj[ind] <- (X[n,] - mu[k,]) %>% as.numeric %>% ed
@@ -195,8 +193,7 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
   }
   
   sol <- numeric(N)
-  for(i in 1:N)
-    sol[i] <- which(r[i,] == 1)
+  for(i in 1:N) sol[i] <- which(r[i,] == 1)
   
   list(X=X, centers=mu, sol=sol, rsol=r, niter=niter)
 }
@@ -219,4 +216,3 @@ failrate <- function(labs, sol) {
   
   mean(errors)
 }
-
