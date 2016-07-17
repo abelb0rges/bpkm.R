@@ -1,3 +1,5 @@
+source('./bpkm.R')
+
 # benchmarking with stats::kmeans
 # iris dataset
 dataset <- as.matrix(iris[,1:4])
