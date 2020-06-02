@@ -11,41 +11,33 @@
 ed <- function(x, y=rep(0,length(x))) {
   if(length(x) != length(y))
     stop('x and y must have same length')
-  crossprod(x-y) %>% sqrt
+  sqrt(crossprod(x-y))
 }
 
 # weighted euclidian distance
 wed <- function(x, y=rep(0,length(x)), w) {
   if(length(x) != length(y))
     stop('x and y must have same length')
-  res <- 0
-  for(i in seq_along(x))
-    res <- res + w[i] * (x[i] - y[i])^2
-  
-  sqrt(res)
+  sqrt(w * (x - y)^2)
 }
 
 # euclidian distance-based cost function
 cost_ed <- function(r, mu, X) {
-  require(magrittr)
-  
-  mu_sum <- (apply(mu, 1, crossprod) %*% apply(r, 2, sum)) %>%
-    as.numeric
-  cross_sum <- (X %*% t(mu) %*% t(r)) %>% sum
-  
+  mu_sum <- as.numeric(apply(mu, 1, crossprod) %*% apply(r, 2, sum))
+  cross_sum <- sum(X %*% t(mu) %*% t(r))
   mu_sum - 2 * cross_sum
 }
 
 # mahalanobis distance-based cost function
 cost_md <- function(r, mu, X) {
   require(MASS)
-  N <- dim(r)[1]; R <- dim(r)[2]
+  N <- dim(r)[1]
+  R <- dim(r)[2]
   K <- dim(mu)[1]
   J <- 0
   
   for(k in 1:K) {
-    kth <- (r[,k] == 1) # rows of k-th cluster
-    S <- cov(X[kth,])
+    S <- cov(X[r[,k] == 1,])
     Sinv <- ginv(S)
     for(n in 1:N) {
       J <- J + mahalanobis(X[n,], mu[k,], Sinv, inverted=TRUE)
@@ -61,15 +53,9 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
   
   # dependencies
   require(MASS)
-  if(!require(magrittr))
-    stop("run install.packages('magrittr') please")
-  if(!require(lpSolve))
-    stop("run install.packages('lpSolve') please")
+  if(!require(lpSolve)) stop("run install.packages('lpSolve') please")
   
-  if(MAHALANOBIS)
-    COST <- cost_md
-  else
-    COST <- cost_ed
+  COST <- if(MAHALANOBIS) cost_md else cost_ed
   
   N <- NROW(X)
   p <- NCOL(X)
@@ -78,17 +64,16 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
     r <- matrix(0, N, K)
     init_part <- list(r = r, centers = NULL)
     cost <- Inf
-
+    
     for(i in 1:init_iter) {
       centers <- X[sample(1:N,K),]
       r <- matrix(0, N, K)
       for(j in 1:N) {
         xx <- as.numeric(X[j,])
-        best <- apply(centers, 1, function(m) ed(xx, m)) %>%
-          which.min
+        best <- which.min(apply(centers, 1, function(m) ed(xx, m)))
         r[j, best] = 1
       }
-
+                                
       newcost <- COST(r, centers, X)
       if(newcost < cost) {
         init_part$r <- r
@@ -96,7 +81,7 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
         cost <- newcost
       }
     }
-
+    
     init_part
   }
   
@@ -105,11 +90,11 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
     r <- matrix(0, N, K)
     init_part <- list(r = r, centers = NULL)
     cost <- Inf
-
+    
     for(i in 1:init_iter) {
       for(j in 1:N) r[j, sample(1:K, 1)] <- 1
       nk <- apply(r, 2, sum)
-      centers <- (t(r) %*% X) %>% apply(2, function(m) m/nk)
+      centers <- apply(t(r) %*% X, 2, function(m) m/nk)
       newcost <- COST(r, centers, X)
       if(newcost < cost) {
         init_part$r <- r
@@ -144,10 +129,7 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
   niter <- 0
   while(niter <= min_it) {
     # initial values for k-means iterations
-    if(RBASED)
-      init_part <- rbased_guess()
-    else
-      init_part <- guess()
+    init_part <- if(RBASED) rbased_guess() else guess()
     oldr <- init_part$r
     mu <- init_part$centers
     
@@ -163,29 +145,24 @@ bpkm <- function(X, K, init_iter=10, min_it=2, MAHALANOBIS=FALSE, RBASED=TRUE) {
       ind <- 0
       for(n in 1:N) {
         for(k in 1:K) {
-          ind %<>% { . + 1 }
+          ind <- ind + 1
           if(MAHALANOBIS) {
-            kth <- (oldr[k,] == 1)
-            S <- cov(X[kth,])
+            S <- cov(X[oldr[k,] == 1,])
             Sinv <- ginv(S)
-            obj[ind] <- mahalanobis(X[n,], mu[k,], Sinv, inverted=TRUE)
+            obj[ind] <- mahalanobis(X[n,], mu[k,], Sinv, inverted = TRUE)
           } else {
-            obj[ind] <- (X[n,] - mu[k,]) %>% as.numeric %>% ed
+            obj[ind] <- ed(as.numeric((X[n,] - mu[k,])))
           }
         }
       }
-      r <- lp(objective.in = obj, const.mat = A, const.dir = dir,
-              const.rhs = rhs, all.bin = TRUE) %$%
-        solution %>% matrix(ncol=K, byrow=TRUE)
+      lp_res <- lp(objective.in = obj, const.mat = A, const.dir = dir,
+              const.rhs = rhs, all.bin = TRUE)
+      r <- matrix(lp_res$solution, ncol = K, byrow = TRUE)
       # step 2: mu optimisation (update cluster's mean)
-      mu %<>% (function(m) {
-        for(k in 1:K) {
-          kth <- (r[,k] == 1) # rows of k-th cluster
-          m[k,] <- as.matrix(X[kth,], nrow=length(kth)) %>%
-            apply(2,mean)
-        }
-        return(m)
-      })
+      for(k in 1:K) {
+        kth <- (r[,k] == 1) # rows of k-th cluster
+        mu[k,] <- apply(as.matrix(X[kth,], nrow = length(kth)), 2, mean)
+      }
       
       bad <- any(!(oldr == r))
       oldr <- r
